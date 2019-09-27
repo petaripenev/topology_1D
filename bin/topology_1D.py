@@ -1,0 +1,108 @@
+#!/usr/bin/env python3
+#%%
+import sys, argparse, csv, re
+import numpy as np
+import pandas as pd
+from datetime import date
+import matplotlib.patches as mpatches
+import matplotlib.pyplot as plt
+
+base_pairs = [('A','U'),('G','C'),('G','U')]
+
+def create_and_parse_argument_options(argument_list):
+	parser = argparse.ArgumentParser(description='Create a 1D topology map for polymer connectivity.')
+	contact_file = parser.add_mutually_exclusive_group(required=True)
+	contact_file.add_argument('-fr3d','--contacts_path', help='Path to fr3d contacts file from RiboVision.')
+	contact_file.add_argument('-bpseq','--bpseq_path', help='Path to bpseq file from XRNA.')
+	parser.add_argument('-o','--output_path', help='Path to output file.', type=str)
+	parser.add_argument('-cm','--color_map', help='Colormap to use.', type=str, default="viridis")
+	commandline_args = parser.parse_args(argument_list)
+	return commandline_args
+
+
+def read_csv(csv_path):
+	'''
+	Reads fr3d csv; ignores the first line; returns list of base-pairing positions.
+	'''
+	cannonical_tuples=[]
+	with open(csv_path, encoding="utf-16") as csv_file:
+		csv_reader = csv.reader(csv_file, delimiter='\t')
+		line_count = 0
+		for row in csv_reader:
+			if line_count == 0:
+				line_count += 1
+				pass
+			else:
+				line_count += 1
+				for cannonical_bp in base_pairs:
+					cannonical_tuples.append((int(row[0].split(':')[1]),int(row[2].split(':')[1])))
+	return cannonical_tuples
+
+def read_bpseq(bpseq_path):
+	'''
+	Reads a bpseq contacts file for XRNA; returns list of base-pairing positions.
+	'''
+	cannonical_tuples=[]
+	with open(bpseq_path, encoding="utf8") as bp_file:
+		for row in bp_file:
+			if int(row.split()[0]) == 0 or int(row.split()[2]) == 0:
+				continue
+			elif len(cannonical_tuples) < 1:
+				cannonical_tuples.append((int(row.split()[0]),int(row.split()[2])))
+			elif (row.split()[0],row.split()[2]) in cannonical_tuples or (row.split()[2],row.split()[0]) in cannonical_tuples:
+				pass
+			else:
+				cannonical_tuples.append((int(row.split()[0]),int(row.split()[2])))
+	return cannonical_tuples
+
+def main(commandline_args):
+	comm_args = create_and_parse_argument_options(commandline_args)
+	if comm_args.contacts_path:
+		cann_tups = read_csv(comm_args.contacts_path)
+	if comm_args.bpseq_path:
+		cann_tups = read_bpseq(comm_args.bpseq_path)
+	
+	
+	ordered_basepairs = sorted(list(set(cann_tups)))
+	helix_num=0
+	helix_basepairs={}
+	#print(ordered_basepairs)
+	for bp_num in range(0,len(ordered_basepairs)):
+		if bp_num > 0:
+			if (ordered_basepairs[bp_num][0]-1 == ordered_basepairs[bp_num-1][0]) or (ordered_basepairs[bp_num][1]-1 == ordered_basepairs[bp_num-1][1]):
+				helix_basepairs[helix_num].append(ordered_basepairs[bp_num])
+			else:
+				helix_num+=1
+				helix_basepairs[helix_num]=[]
+		else:		#Possible bug here if the first element is not part of the first helix
+			helix_basepairs[helix_num]=[]
+			helix_basepairs[helix_num].append(ordered_basepairs[bp_num])
+
+	
+	#print(helix_basepairs)
+	maxresi = max([max(max(cann_tups,key=lambda item:item[0])),max(max(cann_tups,key=lambda item:item[1]))])
+	minresi = min([min(min(cann_tups,key=lambda item:item[0])),min(min(cann_tups,key=lambda item:item[1]))])
+
+	cmap = plt.cm.get_cmap(comm_args.color_map)
+	hexes = cmap(np.linspace(0, 1, helix_num+1))
+
+	plt.style.use('default')
+	fig, ax = plt.subplots(1,1)
+	for helices in sorted(helix_basepairs.keys()):
+		for basepair in helix_basepairs[helices]:
+			pac = mpatches.Arc([sum(basepair)/2,0], abs(basepair[0]-basepair[1]), abs(basepair[0]-basepair[1]), angle=180, color=hexes[helices])
+			ax.add_patch(pac)
+	ax.axis([minresi,maxresi,minresi,maxresi/1.5])
+	fig.canvas.draw()
+
+
+#%%
+
+main(['-fr3d','/home/ppenev/Dropbox-Gatech/Programs/topology_1d/test_data/ECOLI_5S.csv', '-cm', 'rainbow'])
+main(['-bpseq','/home/ppenev/Dropbox-Gatech/Programs/topology_1d/test_data/PYRFU.bpseq','-cm', 'plasma'])
+
+#%%
+if __name__ == '__main__':
+	sys.exit(main(sys.argv[1:]))
+
+#%%
