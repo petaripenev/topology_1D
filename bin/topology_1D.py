@@ -19,7 +19,6 @@ def create_and_parse_argument_options(argument_list):
 	commandline_args = parser.parse_args(argument_list)
 	return commandline_args
 
-
 def read_csv(csv_path):
 	'''
 	Reads fr3d csv; ignores the first line; returns list of base-pairing positions.
@@ -55,14 +54,7 @@ def read_bpseq(bpseq_path):
 				cannonical_tuples.append((int(row.split()[0]),int(row.split()[2])))
 	return cannonical_tuples
 
-def main(commandline_args):
-	comm_args = create_and_parse_argument_options(commandline_args)
-	if comm_args.contacts_path:
-		cann_tups = read_csv(comm_args.contacts_path)
-	if comm_args.bpseq_path:
-		cann_tups = read_bpseq(comm_args.bpseq_path)
-	
-	
+def create_helices(cann_tups):
 	ordered_basepairs = sorted(list(set(cann_tups)))
 	helix_num=0
 	helix_basepairs={}
@@ -77,15 +69,36 @@ def main(commandline_args):
 		else:		#Possible bug here if the first element is not part of the first helix
 			helix_basepairs[helix_num]=[]
 			helix_basepairs[helix_num].append(ordered_basepairs[bp_num])
+	return helix_basepairs, helix_num
+
+def main(commandline_args):
+	comm_args = create_and_parse_argument_options(commandline_args)
+	if comm_args.contacts_path:
+		cann_tups = read_csv(comm_args.contacts_path)
+	if comm_args.bpseq_path:
+		cann_tups = read_bpseq(comm_args.bpseq_path)
+	
+	helix_basepairs, helix_num = create_helices(cann_tups)
+	#print(ordered_basepairs)
+	#for bp_num in range(0,len(ordered_basepairs)):
+	#	if bp_num > 0:
+	#		if (ordered_basepairs[bp_num][0]-1 == ordered_basepairs[bp_num-1][0]) or (ordered_basepairs[bp_num][1]-1 == ordered_basepairs[bp_num-1][1]):
+	#			helix_basepairs[helix_num].append(ordered_basepairs[bp_num])
+	#		else:
+	#			helix_num+=1
+	#			helix_basepairs[helix_num]=[]
+	#	else:		#Possible bug here if the first element is not part of the first helix
+	#		helix_basepairs[helix_num]=[]
+	#		helix_basepairs[helix_num].append(ordered_basepairs[bp_num])
 
 	
-	#print(helix_basepairs)
+	#Get the maximum values for the residue numbers
 	maxresi = max([max(max(cann_tups,key=lambda item:item[0])),max(max(cann_tups,key=lambda item:item[1]))])
 	minresi = min([min(min(cann_tups,key=lambda item:item[0])),min(min(cann_tups,key=lambda item:item[1]))])
 
+	#Plotting
 	cmap = plt.cm.get_cmap(comm_args.color_map)
 	hexes = cmap(np.linspace(0, 1, helix_num+1))
-
 	plt.style.use('default')
 	fig, ax = plt.subplots(1,1)
 	for helices in sorted(helix_basepairs.keys()):
@@ -98,6 +111,7 @@ def main(commandline_args):
 
 #%%
 
+#Execute script within a Jupyter notebook
 main(['-fr3d','/home/ppenev/Dropbox-Gatech/Programs/topology_1d/test_data/ECOLI_5S.csv', '-cm', 'rainbow'])
 main(['-bpseq','/home/ppenev/Dropbox-Gatech/Programs/topology_1d/test_data/PYRFU.bpseq','-cm', 'plasma'])
 
