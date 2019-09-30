@@ -55,7 +55,8 @@ def read_bpseq(bpseq_path):
 
 def read_jv(jalview_path):
 	'''Reads a jalview annotation file for helices; returns list of base-pairing positions.
-		Assumes just one annotation line.
+		Assumes just one annotation line. 
+		Assumes no gaps! So if there are gaps the numbering on the x axis will be messed up.
 	'''
 	with open(jalview_path, encoding="utf8") as jv_file:
 		for line in jv_file:
@@ -109,6 +110,7 @@ def main(commandline_args):
 		cann_tups = read_bpseq(comm_args.bpseq_path)
 	if comm_args.jalview_path:
 		cann_tups = read_jv(comm_args.jalview_path)
+	print(cann_tups)
 	helix_basepairs, helix_num = create_helices(cann_tups)
 	
 	#Get the maximum values for the residue numbers
@@ -131,7 +133,7 @@ def main(commandline_args):
 #%%
 
 #Execute script within a Jupyter notebook
-main(['-jv','/home/ppenev/Dropbox-Gatech/Programs/topology_1d/test_data/ES39_helices_v4','-cm', 'tab10'])
+main(['-jv','/home/ppenev/Dropbox-Gatech/Programs/topology_1d/test_data/ES39_helices_F3H4_v4','-cm', 'plasma'])
 #main(['-fr3d','/home/ppenev/Dropbox-Gatech/Programs/topology_1d/test_data/ECOLI_5S.csv', '-cm', 'rainbow'])
 #main(['-bpseq','/home/ppenev/Dropbox-Gatech/Programs/topology_1d/test_data/PYRFU.bpseq','-cm', 'plasma'])
 
